@@ -27,7 +27,7 @@ label{display:block}
 </style>
 </head>
 <body>
-<h1>دمج محافظ اللوحات <span class="mut" style="font-size:.7rem">v19</span></h1>
+<h1>دمج محافظ اللوحات <span class="mut" style="font-size:.7rem">v20</span></h1>
 
 <div class="card">
 <h2>١) الشيت الأساسي المجمع (xlsx)</h2>
@@ -318,7 +318,6 @@ $("applyBtn").onclick=async()=>{
   $("applyBtn").disabled=true;log("جاري التنفيذ…");
   await new Promise(r=>setTimeout(r,50));
   if(!S.wb){log("جاري تجهيز الشيت الأساسي… قد يستغرق دقيقة");await new Promise(r=>setTimeout(r,30));const wb=new ExcelJS.Workbook();await wb.xlsx.load(S.bytes);S.wb=wb;S.ws=wb.getWorksheet(S.sheetName)||wb.worksheets[0]}
-  try{designSheet(S.wb)}catch(e){console.error(e)}
   const ws=S.ws,dels=new Set();
   all.forEach(o=>(S.byOwner.get(o)||[]).forEach(r=>dels.add(r)));
   W.forEach(w=>w.dm.forEach(o=>{const ks=w.found.get(o);(S.byOwner.get(o)||[]).forEach(r=>{if(ks&&ks.has(norm(ctext(ws.getRow(r).getCell(S.pc))).key))dels.add(r)})}));
@@ -349,6 +348,7 @@ $("applyBtn").onclick=async()=>{
     }
     S._verify=[...before].map(([o,n])=>o+": كان "+n+" صف ← اتمسح كله");
   }
+  const RU=new Map();
   let fixed=0;
   for(let r=S.h+1;r<=ws.rowCount;r++){
     const cell=ws.getCell(r,S.pc),t=ctext(cell);
@@ -374,8 +374,23 @@ $("applyBtn").onclick=async()=>{
       const row=ws.addRow(vals);
       tpl.forEach((st,c)=>{row.getCell(c+1).style=st});
       added++;
+      if(z.L&&z.D&&!RU.has(w.name2))RU.set(w.name2,{o:w.name2,p:plate,k:z.key,n:row.number});
     }
   }
+  // آخر 3 ملاك اتحدّثوا: لوحة من كل واحد تتكتب في أول الصفحة الأولى علشان تنوّر
+  try{
+    let prevR=[];try{const mm=/^RZ:([\s\S]*)$/.exec(S.wb.keywords||"");if(mm)prevR=JSON.parse(mm[1])}catch(e){}
+    const gone=e=>all.includes(e.o)||(dmAll.includes(e.o)&&W.some(w=>{const f=w.found.get(e.o);return f&&f.has(e.k)}));
+    const cur=[...RU.values()].reverse(),names=new Set(cur.map(e=>e.o));
+    const keep=prevR.filter(e=>e&&e.o&&e.k&&!names.has(e.o)&&!gone(e));
+    const need=new Map(keep.map(e=>[e.k,e]));
+    for(let r=S.h+1;r<=ws.rowCount&&need.size;r++){const k=norm(ctext(ws.getRow(r).getCell(S.pc))).key;const e=need.get(k);if(e){e.n=r;need.delete(k)}}
+    const recent=[...cur,...keep].filter(e=>e.n).slice(0,3);
+    recent.forEach(e=>{const rw=ws.getRow(e.n);e.v=[1,2,3,4].map(c=>{const v=rw.getCell(c).value;return v==null?"":String(v&&typeof v==="object"&&v.text?v.text:v)})});
+    S._recent=recent;
+    S.wb.keywords="RZ:"+JSON.stringify(recent.map(e=>({o:e.o,p:e.p,k:e.k})));
+  }catch(e){console.error(e);S._recent=[]}
+  try{designSheet(S.wb)}catch(e){console.error(e)}
   try{
     S.out=new Uint8Array(await S.wb.xlsx.writeBuffer());S.bytes=S.out;S.fileName="النسخة المحدثة بعد التنفيذ";
     log("تم. حُذف "+rs.length+" صف، وأُضيف "+added+" صف.\n"+(S._verify||[]).join("\n")+(S._fixed?"\nتصحيح "+S._fixed+" لوحة إنجليزي إلى حروف عربي في الأساسي":"")+"\nراجع الملف قبل الاعتماد، خصوصاً الأعمدة التي بها معادلات.");
@@ -387,11 +402,11 @@ const XMIME="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 function saveFile(bytes){
   const a=document.createElement("a");
   a.href=URL.createObjectURL(new Blob([bytes],{type:XMIME}));
-  a.download="Rasd Zaki.xlsx";document.body.appendChild(a);a.click();
+  a.download="تشييك Rasd Zaki.xlsx";document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);
 }
 async function shareFile(bytes){
-  const f=new File([bytes],"Rasd Zaki.xlsx",{type:XMIME});
+  const f=new File([bytes],"تشييك Rasd Zaki.xlsx",{type:XMIME});
   if(navigator.canShare&&navigator.canShare({files:[f]})){
     try{await navigator.share({files:[f],title:"Rasd Zaki"});return}
     catch(e){if(e&&e.name==="AbortError")return}
@@ -417,7 +432,7 @@ function designSheet(wb){
   const st=(c,patch)=>{c.style=Object.assign({},c.style,patch)};
   const solid=a=>({type:"pattern",pattern:"solid",fgColor:{argb:a},bgColor:{argb:a}});
   const none={type:"pattern",pattern:"none"};
-  try{ws.name="⚡ 『تشييك | RASD ZAKI』 ⚡"}catch(e){}
+  try{ws.name="تشييك"}catch(e){}
   const CW={A:20.2,B:0.6,C:16.8,D:34.1,E:32.7,F:39.8};
   Object.keys(CW).forEach(k=>{ws.getColumn(k).width=CW[k]});
   [[1,33.75],[2,34.5],[3,30]].forEach(([r,h])=>{ws.getRow(r).height=h});
@@ -431,13 +446,16 @@ function designSheet(wb){
   }
   // معادلات أسرع: بحث واحد لكل لوحة (عمود B المخفي) والباقي INDEX، والصفوف الفاضية بتتخطى
   let anyFilled=false;
+  const RC=S._recent||[];
+  RC.forEach((e,i)=>{ws.getCell(4+i,1).value=e.p});
   for(let r=4;r<=4999;r++){
+    const rc=RC[r-4];
     const av=ws.getCell(r,1).value,empty=av==null||String(av).trim()==="";
     if(!empty)anyFilled=true;
     const put=(c,f,res)=>{const old=c.value;c.value={formula:f,result:empty?"":(res!==undefined?res:(old&&old.result!==undefined?old.result:""))}};
-    put(ws.getCell("B"+r),`IF(A${r}="","",IFERROR(MATCH(A${r},بيانات!A:A,0),""))`,"");
-    [["C","A"],["D","B"],["E","C"],["F","D"]].forEach(([L,src])=>{
-      put(ws.getCell(L+r),`IF(B${r}="","",INDEX(بيانات!${src}:${src},B${r}))`);
+    put(ws.getCell("B"+r),`IF(A${r}="","",IFERROR(MATCH(A${r},بيانات!A:A,0),""))`,rc?rc.n:"");
+    [["C","A",0],["D","B",1],["E","C",2],["F","D",3]].forEach(([L,src,ix])=>{
+      put(ws.getCell(L+r),`IF(B${r}="","",INDEX(بيانات!${src}:${src},B${r}))`,rc&&rc.v?rc.v[ix]:undefined);
     });
   }
   try{wb.calcProperties=Object.assign({},wb.calcProperties,{fullCalcOnLoad:anyFilled})}catch(e){}
