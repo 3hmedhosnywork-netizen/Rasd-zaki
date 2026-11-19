@@ -3,19 +3,21 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101820"><meta name="description" content="تسجيل أكواد المواقع وروابط خرائط Google وتجهيزها للإرسال عبر واتساب">
-<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="style-extra.css">
 <title>مرسال المواقع</title>
 </head>
 <body>
 <header class="top"><div class="brand"><div class="logo">⌖</div><div><b>مرسال المواقع</b><small>تسجيل وترتيب المواقع</small></div></div><button id="installBtn" class="install hidden">تثبيت التطبيق</button></header>
 <main>
 <section class="hero"><div><span class="eyebrow">WORKFLOW • MAPS → WHATSAPP</span><h1>سجّل موقعك،<br><em>وخلّي الإرسال أسهل.</em></h1><p>استقبل رابط Google Maps بالمشاركة، وسيُنشأ له الكود التالي تلقائياً.</p></div><div class="hero-mark">⌖</div></section>
-<section class="panel settings"><div class="section-head"><div><span class="eyebrow">الإعدادات</span><h2>ترقيم المواقع</h2></div><span class="status"><i></i> حفظ تلقائي</span></div><div class="settings-grid"><label>بادئة الكود<input id="prefix" maxlength="8" value="K" autocomplete="off"></label><label>الرقم التالي<input id="nextNumber" type="number" min="0" value="272"></label></div><p class="hint">مثال: K272 ثم K273 ثم K274. يتذكر التطبيق آخر رقم على هذا الجهاز.</p></section>
-<section class="panel add"><div class="section-head"><div><span class="eyebrow">إضافة موقع</span><h2>استقبال رابط جديد</h2></div><span class="counter" id="count">0 موقع</span></div><textarea id="urlInput" rows="2" placeholder="الصق رابط Google Maps هنا أو استخدم مشاركة من الخرائط..."></textarea><div class="actions"><button id="addBtn" class="primary">＋ إضافة الموقع</button><button id="pasteBtn" class="secondary">لصق</button></div><div id="shareNotice" class="notice hidden">وصل رابط من مشاركة Google Maps — راجعه ثم أضفه للقائمة.</div></section>
+<section class="panel settings"><div class="section-head"><div><span class="eyebrow">الإعدادات</span><h2>ترقيم المواقع</h2></div><span class="status"><i></i> حفظ تلقائي</span></div><div class="settings-grid"><label>بادئة الكود<input id="prefix" maxlength="8" value="" placeholder="مثال: M" autocomplete="off"></label><label>الرقم التالي<input id="nextNumber" type="number" min="0" value="" placeholder="مثال: 63"></label></div><p class="hint">حدد بداية الترقيم بنفسك. مثال: M و 63 ثم M63، M64، M65…</p></section>
+<section class="panel add"><div class="section-head"><div><span class="eyebrow">إضافة موقع</span><h2>استقبال رابط جديد</h2></div><span class="counter" id="count">0 موقع</span></div><textarea id="urlInput" rows="2" placeholder="الصق رابط Google Maps هنا أو استخدم مشاركة من الخرائط..."></textarea><div class="actions"><button id="addBtn" class="primary">＋ إضافة الموقع</button><button id="pasteBtn" class="secondary">لصق</button></div><div id="shareNotice" class="notice hidden"></div></section>
 <section class="queue-head"><div><span class="eyebrow">قائمة الإرسال</span><h2>المواقع المحفوظة</h2></div><button id="clearDone" class="text-btn">مسح المكتمل</button></section>
 <div id="empty" class="empty"><div class="empty-icon">⌖</div><b>القائمة لسه فاضية</b><p>شارك موقعاً من Google Maps إلى «مرسال المواقع» ليظهر هنا.</p></div>
-<button id="sendAllBtn" class="primary send-all hidden">إرسال الكل إلى واتساب</button><div id="queue" class="queue"></div>
-<section class="footnote"><b>طريقة الإرسال</b><p>زر «إرسال الكل» يجمع المواقع في رسالة واتساب واحدة: رابط كل موقع أولاً، ثم 5 أسطر فارغة، ثم الكود. يفصل بين المواقع بفاصل واضح. اختر المحادثة واضغط إرسال مرة واحدة. (واتساب يستقبلها كرسالة واحدة مجمعة، وليس رسائل منفصلة تلقائيًا.)</p></section>
+<button id="sendAllBtn" class="primary send-all hidden">إرسال الكل — رسائل منفصلة بالترتيب</button>
+<section id="seqPanel" class="panel seq-panel hidden"><div class="seq-top"><span class="eyebrow">الإرسال المتتابع</span><span id="seqProgress" class="counter"></span></div><h2 id="seqCode" class="seq-code"></h2><p class="hint">أرسل الرسالة المفتوحة في واتساب، ثم ارجع هنا واضغط تجهيز الرسالة التالية.</p><div class="actions"><button id="seqNextBtn" class="primary">تم إرسالها — جهّز التالية</button><button id="seqStopBtn" class="secondary">إيقاف</button></div></section>
+<div id="queue" class="queue"></div>
+<section class="footnote"><b>طريقة الإرسال</b><p>زر «إرسال الكل» يفتح كل موقع في رسالة واتساب منفصلة بالتتابع: الرابط أولاً، ثم 5 أسطر فارغة، ثم الكود. أرسل الرسالة في واتساب، ثم ارجع للتطبيق واضغط «تم إرسالها — جهّز التالية». اختيار المحادثة وإرسال كل رسالة يظل بيدك.</p></section>
 </main>
 <nav class="bottom"><span>مرسال المواقع</span><span>يعمل دون اتصال بعد أول فتح</span></nav>
 <script src="app.js"></script>
