@@ -2,23 +2,19 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#101820"><meta name="description" content="تسجيل أكواد المواقع وروابط خرائط Google وتجهيزها للإرسال عبر واتساب">
-<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="style-extra.css">
+<meta name="theme-color" content="#071016"><meta name="description" content="مرسال المواقع - ترتيب وإرسال روابط خرائط">
+<link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon.svg">
+<link rel="stylesheet" href="./style.css">
 <title>مرسال المواقع</title>
 </head>
 <body>
-<header class="top"><div class="brand"><div class="logo">⌖</div><div><b>مرسال المواقع</b><small>تسجيل وترتيب المواقع</small></div></div><button id="installBtn" class="install hidden">تثبيت التطبيق</button></header>
+<header class="topbar"><div class="brand"><div class="logo">⌖</div><div><strong>مرسال المواقع</strong><small>تسجيل وترتيب المواقع</small></div></div><button id="installBtn" class="install hidden">تثبيت التطبيق</button></header>
 <main>
-<section class="hero"><div><span class="eyebrow">WORKFLOW • MAPS → WHATSAPP</span><h1>سجّل موقعك،<br><em>وخلّي الإرسال أسهل.</em></h1><p>استقبل رابط Google Maps بالمشاركة، وسيُنشأ له الكود التالي تلقائياً.</p></div><div class="hero-mark">⌖</div></section>
-<section class="panel settings"><div class="section-head"><div><span class="eyebrow">الإعدادات</span><h2>ترقيم المواقع</h2></div><span class="status"><i></i> حفظ تلقائي</span></div><div class="settings-grid"><label>بادئة الكود<input id="prefix" maxlength="8" value="" placeholder="مثال: M" autocomplete="off"></label><label>الرقم التالي<input id="nextNumber" type="number" min="0" value="" placeholder="مثال: 63"></label></div><p class="hint">حدد بداية الترقيم بنفسك. مثال: M و 63 ثم M63، M64، M65…</p></section>
-<section class="panel add"><div class="section-head"><div><span class="eyebrow">إضافة موقع</span><h2>استقبال رابط جديد</h2></div><span class="counter" id="count">0 موقع</span></div><textarea id="urlInput" rows="2" placeholder="الصق رابط Google Maps هنا أو استخدم مشاركة من الخرائط..."></textarea><div class="actions"><button id="addBtn" class="primary">＋ إضافة الموقع</button><button id="pasteBtn" class="secondary">لصق</button></div><div id="shareNotice" class="notice hidden"></div></section>
-<section class="queue-head"><div><span class="eyebrow">قائمة الإرسال</span><h2>المواقع المحفوظة</h2></div><button id="clearDone" class="text-btn">مسح المكتمل</button></section>
-<div id="empty" class="empty"><div class="empty-icon">⌖</div><b>القائمة لسه فاضية</b><p>شارك موقعاً من Google Maps إلى «مرسال المواقع» ليظهر هنا.</p></div>
-<button id="sendAllBtn" class="primary send-all hidden">إرسال الكل — رسائل منفصلة بالترتيب</button>
-<section id="seqPanel" class="panel seq-panel hidden"><div class="seq-top"><span class="eyebrow">الإرسال المتتابع</span><span id="seqProgress" class="counter"></span></div><h2 id="seqCode" class="seq-code"></h2><p class="hint">أرسل الرسالة المفتوحة في واتساب، ثم ارجع هنا واضغط تجهيز الرسالة التالية.</p><div class="actions"><button id="seqNextBtn" class="primary">تم إرسالها — جهّز التالية</button><button id="seqStopBtn" class="secondary">إيقاف</button></div></section>
-<div id="queue" class="queue"></div>
-<section class="footnote"><b>طريقة الإرسال</b><p>زر «إرسال الكل» يفتح كل موقع في رسالة واتساب منفصلة بالتتابع: الرابط أولاً، ثم 5 أسطر فارغة، ثم الكود. أرسل الرسالة في واتساب، ثم ارجع للتطبيق واضغط «تم إرسالها — جهّز التالية». اختيار المحادثة وإرسال كل رسالة يظل بيدك.</p></section>
-</main>
-<nav class="bottom"><span>مرسال المواقع</span><span>يعمل دون اتصال بعد أول فتح</span></nav>
-<script src="app.js"></script>
+<section class="hero"><h1>سجّل موقعك،<br><span>وخلّي الإرسال أسهل.</span></h1><p>استقبل رابط Google Maps بالمشاركة، وسيُنشأ له الكود التالي تلقائيًا.</p></section>
+<section class="panel settings"><div class="panelhead"><div><small class="eyebrow">الإعدادات</small><h2>ترقيم المواقع</h2></div><span class="pill">حفظ تلقائي <i></i></span></div><div class="fields"><label>بادئة الكود<input id="prefix" placeholder="مثلاً M" autocomplete="off"></label><label>الرقم التالي<input id="nextNumber" placeholder="مثلاً 63" inputmode="numeric"></label></div><p class="hint">حدد بداية الترقيم بنفسك، ثم يكمل التطبيق تلقائيًا.</p></section>
+<section class="panel add"><div class="panelhead"><div><small class="eyebrow">إضافة موقع</small><h2>استقبال رابط جديد</h2></div><span class="pill" id="count">0 موقع</span></div><textarea id="urlInput" placeholder="هنا أو استخدم مشاركة من Google Maps والصق رابط الخرائط..." rows="2"></textarea><div class="buttons"><button id="pasteBtn" class="secondary">لصق</button><button id="addBtn" class="primary">＋ إضافة الموقع</button></div><p id="shareNotice" class="notice hidden"></p></section>
+<section class="listsection"><div class="listhead"><div><small class="eyebrow">قائمة الإرسال</small><h2>المواقع المحفوظة</h2></div><button id="clearDone" class="textbutton gold">مسح المكتمل</button></div><button id="sendAllBtn" class="primary sendall hidden">إرسال الكل — رسائل منفصلة بالترتيب</button><div id="seqPanel" class="panel seq-panel hidden"><div class="seq-title">الإرسال المتتابع <span id="seqProgress"></span></div><div class="seq-code" id="seqCode"></div><div class="buttons"><button id="seqStopBtn" class="secondary">إيقاف</button><button id="seqNextBtn" class="primary">تم إرسالها — جهّز التالية</button></div><div id="queue" class="queue"></div><div id="empty" class="empty"><div class="target">⌖</div><strong>القائمة لسه فاضية</strong><p>شارك موقعًا من Google Maps إلى «مرسال المواقع» ليظهر هنا.</p></div></section>
+<section class="note"><strong>طريقة الإرسال</strong><p>لكل موقع: الرابط أولاً، ثم عدة أسطر فارغة، وبعدها الكود. أثناء إرسال الكل، أرسل الرسالة في واتساب ثم ارجع هنا واضغط «تم إرسالها — جهّز التالية». زر «إعادة إرسال» يرسل الموقع وحده دون تغيير ترتيبه أو حالة الإرسال.</p></section>
+</main><footer>مرسال المواقع · يعمل دون اتصال بعد أول فتح</footer>
+<script src="./app.js"></script>
 </body></html>
