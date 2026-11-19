@@ -32,6 +32,9 @@
   function render(){
     $('prefix').value=state.prefix; $('nextNumber').value=state.next??''; $('count').textContent=`${state.items.length} موقع`;
     $('queue').replaceChildren(); $('empty').classList.toggle('hidden',state.items.length>0); $('sendAllBtn').classList.toggle('hidden',state.items.length===0);
+    const nextToSend=chronological().find(x=>!x.sent);
+    $('sendAllBtn').textContent=nextToSend?`إرسال الموقع التالي (${nextToSend.code}) إلى واتساب`:'تم إرسال جميع المواقع';
+    $('sendAllBtn').disabled=!nextToSend;
     for(const item of chronological()){
       const card=document.createElement('article'); card.className='item';
       const top=document.createElement('div'); top.className='item-top';
@@ -48,8 +51,8 @@
   $('nextNumber').onchange=()=>{const v=$('nextNumber').value.trim();state.next=v===''?null:Math.max(0,parseInt(v,10)||0);persist();};
   $('addBtn').onclick=()=>addLink($('urlInput').value);
   $('pasteBtn').onclick=async()=>{try{$('urlInput').value=await navigator.clipboard.readText();}catch{notice('الصق الرابط يدويًا داخل المربع.');}};
-  $('clearDone').onclick=()=>{const count=state.items.filter(x=>x.sent).length;if(!count){notice('لا يوجد مواقع مكتملة لمسحها.');return;}if(confirm(`مسح ${count} موقع تم تأكيد إرساله؟`)){state.items=state.items.filter(x=>!x.sent);persist();}};
-  $('sendAllBtn').onclick=()=>{const items=chronological();if(!items.length)return;const combined=items.map(formatted).join('\n\n\n\n\n');waShare(combined);};
+  $('clearDone').onclick=()=>{const count=state.items.length;if(!count){notice('القائمة فارغة بالفعل.');return;}if(confirm(`مسح القائمة بالكامل؟ سيتم حذف ${count} موقع، سواء تم إرساله أو لم يتم. لا يمكن التراجع عن هذا الإجراء.`)){state.items=[];persist();notice('تم مسح القائمة بالكامل.');}};
+  $('sendAllBtn').onclick=()=>{const next=chronological().find(x=>!x.sent);if(!next)return;waShare(formatted(next));notice(`جهزت رسالة الموقع ${next.code}. بعد إرسالها ارجع واضغط تأكيد الإرسال ليظهر الموقع التالي.`);};
   function handleShared(){const p=new URLSearchParams(location.search);const received=[p.get('url'),p.get('text'),p.get('title')].filter(Boolean).join('\n');const url=extractUrl(received);if(url){if(makeCode())addLink(url);else{$('urlInput').value=url;notice('وصل رابط الموقع. حدّد بداية الترقيم ثم اضغط «إضافة الموقع».');}}else if(received){$('urlInput').value=received;notice('تم استلام المشاركة. راجع الرابط داخل المربع ثم أضف الموقع.');}if(received)history.replaceState({},'',location.pathname);}
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('installBtn').classList.remove('hidden');});
   $('installBtn').onclick=async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$('installBtn').classList.add('hidden');};
