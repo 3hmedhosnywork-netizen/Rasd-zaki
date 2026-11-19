@@ -43,15 +43,16 @@
       const link=document.createElement('div'); link.className='link'; link.textContent=item.url;
       const actions=document.createElement('div'); actions.className='item-actions';
       const resend=document.createElement('button'); resend.className='resend'; resend.textContent='إعادة إرسال'; resend.onclick=()=>waShare(formatted(item));
-      const mark=document.createElement('button'); mark.className='mark'; mark.textContent=item.sent?'إلغاء تأكيد الإرسال':'تأكيد الإرسال'; mark.onclick=()=>{item.sent=!item.sent;persist();};
-      actions.append(resend,mark); card.append(top,link,actions); $('queue').append(card);
+      const remove=document.createElement('button'); remove.className='delete-item'; remove.textContent='مسح الموقع'; remove.onclick=()=>{if(confirm(`حذف الموقع ${item.code} من القائمة؟`)){state.items=state.items.filter(x=>x.id!==item.id);persist();notice(`تم حذف الموقع ${item.code}.`);}};
+      actions.append(resend,remove); card.append(top,link,actions); $('queue').append(card);
     }
   }
   $('prefix').onchange=()=>{state.prefix=$('prefix').value.trim();persist();};
   $('nextNumber').onchange=()=>{const v=$('nextNumber').value.trim();state.next=v===''?null:Math.max(0,parseInt(v,10)||0);persist();};
   $('addBtn').onclick=()=>addLink($('urlInput').value);
   $('pasteBtn').onclick=async()=>{try{$('urlInput').value=await navigator.clipboard.readText();}catch{notice('الصق الرابط يدويًا داخل المربع.');}};
-  $('clearDone').onclick=()=>{const count=state.items.length;if(!count){notice('القائمة فارغة بالفعل.');return;}if(confirm(`مسح القائمة بالكامل؟ سيتم حذف ${count} موقع، سواء تم إرساله أو لم يتم. لا يمكن التراجع عن هذا الإجراء.`)){state.items=[];persist();notice('تم مسح القائمة بالكامل.');}};
+  $('clearDone').textContent='مسح الكل';
+  $('clearDone').onclick=()=>{const count=state.items.length;if(!count){notice('القائمة فارغة بالفعل.');return;}if(confirm(`تأكيد مسح الكل؟ سيتم حذف جميع المواقع (${count}) بما فيها المرسلة وغير المرسلة. لا يمكن التراجع.`)){state.items=[];persist();notice('تم مسح كل المواقع من القائمة.');}};
   $('sendAllBtn').onclick=()=>{const next=chronological().find(x=>!x.sent);if(!next)return;waShare(formatted(next));notice(`جهزت رسالة الموقع ${next.code}. بعد إرسالها ارجع واضغط تأكيد الإرسال ليظهر الموقع التالي.`);};
   function handleShared(){const p=new URLSearchParams(location.search);const received=[p.get('url'),p.get('text'),p.get('title')].filter(Boolean).join('\n');const url=extractUrl(received);if(url){if(makeCode())addLink(url);else{$('urlInput').value=url;notice('وصل رابط الموقع. حدّد بداية الترقيم ثم اضغط «إضافة الموقع».');}}else if(received){$('urlInput').value=received;notice('تم استلام المشاركة. راجع الرابط داخل المربع ثم أضف الموقع.');}if(received)history.replaceState({},'',location.pathname);}
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('installBtn').classList.remove('hidden');});
