@@ -34,3 +34,9 @@ The share handler now searches the human-readable share title/text (before any U
 - Skips duplicate codes/links and prompts before importing.
 - KMZ support included for common stored/deflate ZIP entries, subject to browser DecompressionStream support.
 - This import requires the user to export their map from Google My Maps to KML/KMZ first; it does not fetch private map contents directly from Google Maps.
+
+
+## V7 update
+- Adds JSON import support for Android-friendly site data files.
+- Retains existing KML and KMZ import and all V6 app features.
+- V7 adds a JSON import path for Android-friendly file picking while preserving V6 KML/KMZ import.

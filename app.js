@@ -89,7 +89,7 @@
   $('installBtn').onclick=async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$('installBtn').classList.add('hidden');};
   if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 
-  // V6: Import named placemarks from KML/KMZ exports.
+  // V7: Keep KML/KMZ import and add lightweight JSON import for Android file pickers.
   const mapFile=$('mapFile'), importBtn=$('importMapBtn'), importNotice=$('importNotice');
   function importMsg(s){importNotice.textContent=s;importNotice.classList.remove('hidden');}
   function parseKmlText(xmlText){
@@ -134,11 +134,19 @@
     throw new Error('لم أجد ملف KML داخل KMZ.');
   }
   importBtn.onclick=async()=>{
-    const file=mapFile.files?.[0]; if(!file){importMsg('اختار ملف KML أو KMZ الأول.');return;}
+    const file=mapFile.files?.[0]; if(!file){importMsg('اختار ملف JSON أو KML أو KMZ الأول.');return;}
     try{
-      let text;
-      if(file.name.toLowerCase().endsWith('.kmz')) text=await extractKmlFromKmz(await file.arrayBuffer()); else text=await file.text();
-      const pins=parseKmlText(text); if(!pins.length){importMsg('لم أجد دبابيس بها أسماء وإحداثيات في الملف.');return;}
+      let pins;
+      const lowerName=file.name.toLowerCase();
+      if(lowerName.endsWith('.json')){
+        const parsed=JSON.parse(await file.text());
+        const rawPins=Array.isArray(parsed)?parsed:(Array.isArray(parsed?.pins)?parsed.pins:[]);
+        pins=rawPins.map(p=>{const lat=Number(p.lat),lon=Number(p.lon);const name=String(p.name??p.code??'').trim();const code=String(p.code??name).trim();const url=String(p.url||((Number.isFinite(lat)&&Number.isFinite(lon))?`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`:''));return {code,name,lat,lon,url};}).filter(p=>p.code&&p.url);
+      }else{
+        let text;
+        if(lowerName.endsWith('.kmz')) text=await extractKmlFromKmz(await file.arrayBuffer()); else text=await file.text();
+        pins=parseKmlText(text);
+      } if(!pins.length){importMsg('لم أجد دبابيس بها أسماء وإحداثيات في الملف.');return;}
       const unique=[]; const seenCodes=new Set(),seenUrls=new Set();
       for(const p of pins){const ck=p.code.toLowerCase(); if(seenCodes.has(ck)||state.items.some(x=>x.code.toLowerCase()===ck)||seenUrls.has(p.url)||state.items.some(x=>x.url===p.url))continue;seenCodes.add(ck);seenUrls.add(p.url);unique.push(p);}
       if(!unique.length){importMsg(`قرأت ${pins.length} دبوس، لكن كلها موجودة بالفعل أو مكررة؛ لم أضف شيئًا.`);return;}
