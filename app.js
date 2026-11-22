@@ -177,5 +177,18 @@
     }catch(e){importMsg(e?.message||'حدث خطأ أثناء قراءة الملف.');}
   };
 
+
+  // V11: Safe deletion of an entire single-letter code group (sent and unsent).
+  const letterDeleteToggle=$('letterDeleteToggle'), letterDeleteBody=$('letterDeleteBody'), letterDeleteInput=$('letterDeleteInput'), letterDeletePreview=$('letterDeletePreview'), letterDeleteConfirm=$('letterDeleteConfirm');
+  function matchingLetterGroup(letter){
+    const L=String(letter||'').trim().toUpperCase();
+    if(!/^[A-Z]$/.test(L)) return [];
+    return state.items.filter(item=>{const parts=codeParts(item.code);return parts.letters===L&&parts.num!==null;});
+  }
+  letterDeleteToggle.onclick=()=>{const open=letterDeleteBody.classList.contains('hidden');letterDeleteBody.classList.toggle('hidden',!open);letterDeleteToggle.textContent=open?'إغلاق':'فتح';if(open)letterDeleteInput.focus();};
+  letterDeleteInput.oninput=()=>{letterDeleteInput.value=letterDeleteInput.value.replace(/[^a-z]/gi,'').slice(0,1).toUpperCase();const letter=letterDeleteInput.value;const matches=matchingLetterGroup(letter);letterDeleteConfirm.disabled=!letter||matches.length===0;letterDeletePreview.textContent=letter?(matches.length?`الحرف ${letter}: سيتم حذف ${matches.length} موقع (المرسل وغير المرسل).`:`لا توجد مواقع مسجلة بكود يبدأ بالحرف ${letter} متبوعًا برقم.`): 'أدخل حرفًا لعرض عدد المواقع المستهدفة.';};
+  letterDeleteConfirm.onclick=()=>{const letter=letterDeleteInput.value.trim().toUpperCase();const matches=matchingLetterGroup(letter);if(!matches.length)return;const count=matches.length;if(!confirm(`تأكيد نهائي: حذف جميع مواقع المجموعة ${letter} (${count} موقع)؟
+سيتم حذف المرسل وغير المرسل فقط لهذه المجموعة، ولن تتأثر بقية الحروف. لا يمكن التراجع.`))return;const ids=new Set(matches.map(x=>x.id));if(ids.has(state.pendingSendId))state.pendingSendId=null;state.items=state.items.filter(x=>!ids.has(x.id));persist();letterDeleteInput.value='';letterDeleteConfirm.disabled=true;letterDeletePreview.textContent=`تم حذف ${count} موقع من المجموعة ${letter}.`;notice(`تم حذف ${count} موقع من المجموعة ${letter} فقط.`);};
+
   render();handleShared();
 })();

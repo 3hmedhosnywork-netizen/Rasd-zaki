@@ -55,3 +55,10 @@ The share handler now searches the human-readable share title/text (before any U
 - Renders the first 120 cards only and provides a show-more button to load additional cards in chunks, reducing initial rendering work for large lists.
 - Adds a short return-handler guard for WhatsApp app switching.
 - Cache bumped to v10.
+
+
+## V11 letter-group deletion (Nov 22, 2026)
+- Adds an expandable “مسح حرف كامل” panel in the saved-sites section.
+- Enter a single letter to preview how many matching letter+number codes will be deleted.
+- Final confirmation is required; deletes all matching sites, both sent and unsent, and leaves other letter groups untouched.
+- Cache bumped to v11.
