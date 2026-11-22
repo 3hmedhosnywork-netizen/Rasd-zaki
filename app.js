@@ -12,6 +12,8 @@
   let state = {prefix:'',next:null,pendingSendId:null,items:[]};
   try { state = normalize(JSON.parse(localStorage.getItem(KEY)||'{}')); } catch {}
   let installPrompt = null;
+  let visibleCount = 120;
+  const PAGE_SIZE = 120;
   function persist(){ localStorage.setItem(KEY,JSON.stringify(state)); render(); }
   function extractUrl(value){
     const matches=String(value||'').match(/https?:\/\/[^\s<>"']+/ig)||[];
@@ -45,14 +47,17 @@
   // A blank line is intentionally kept between the URL and code to match the user's WhatsApp layout.
   function formatted(item){ return `${item.url}\n\n\n\n\n${item.code}`; }
   function waShare(text){ const url='https://wa.me/?text='+encodeURIComponent(text); window.open(url,'_blank'); }
+  function codeParts(code){ const m=String(code||'').match(/^([A-Za-z]+)[\s_-]*(\d+)$/); return m ? {letters:m[1].toUpperCase(),num:Number(m[2]),raw:String(code)} : {letters:String(code||'').toUpperCase(),num:null,raw:String(code||'')}; }
+  function ordered(){ return [...state.items].sort((a,b)=>{ const A=codeParts(a.code),B=codeParts(b.code); const letterCmp=A.letters.localeCompare(B.letters,'en'); if(letterCmp) return letterCmp; if(A.num!==null&&B.num!==null) return B.num-A.num; if(A.num!==null) return -1; if(B.num!==null) return 1; return A.raw.localeCompare(B.raw,'en',{numeric:true}); }); }
   function chronological(){ return [...state.items].sort((a,b)=>a.created-b.created); }
   function render(){
     $('prefix').value=state.prefix; $('nextNumber').value=state.next??''; $('count').textContent=`${state.items.length} موقع`;
     $('queue').replaceChildren(); $('empty').classList.toggle('hidden',state.items.length>0); $('sendAllBtn').classList.toggle('hidden',state.items.length===0);
-    const nextToSend=chronological().find(x=>!x.sent);
+    let moreBtn=$('loadMoreBtn'); if(!moreBtn){moreBtn=document.createElement('button');moreBtn.id='loadMoreBtn';moreBtn.className='secondary';moreBtn.style.width='100%';moreBtn.style.margin='12px 0';moreBtn.textContent='عرض المزيد من المواقع';moreBtn.onclick=()=>{visibleCount+=PAGE_SIZE;render();};$('queue').after(moreBtn);} moreBtn.classList.toggle('hidden',state.items.length<=visibleCount); moreBtn.textContent=`عرض ${Math.max(0,Math.min(PAGE_SIZE,state.items.length-visibleCount))} موقع إضافي (${Math.min(visibleCount,state.items.length)} من ${state.items.length})`;
+    const nextToSend=ordered().find(x=>!x.sent);
     $('sendAllBtn').textContent=state.pendingSendId?`بانتظار الرجوع من واتساب (${chronological().find(x=>x.id===state.pendingSendId)?.code||''})`:(nextToSend?`إرسال الموقع التالي (${nextToSend.code}) إلى واتساب`:'تم إرسال جميع المواقع');
     $('sendAllBtn').disabled=!nextToSend||!!state.pendingSendId;
-    for(const item of chronological()){
+    for(const item of ordered().slice(0,visibleCount)){
       const card=document.createElement('article'); card.className='item';
       const top=document.createElement('div'); top.className='item-top';
       const code=document.createElement('strong'); code.className='code'; code.textContent=item.code;
@@ -70,8 +75,9 @@
   $('pasteBtn').onclick=async()=>{try{$('urlInput').value=await navigator.clipboard.readText();}catch{notice('الصق الرابط يدويًا داخل المربع.');}};
   $('clearDone').textContent='مسح الكل';
   $('clearDone').onclick=()=>{const count=state.items.length;if(!count){notice('القائمة فارغة بالفعل.');return;}if(confirm(`تأكيد مسح الكل؟ سيتم حذف جميع المواقع (${count}) بما فيها المرسلة وغير المرسلة. لا يمكن التراجع.`)){state.items=[];state.pendingSendId=null;persist();notice('تم مسح كل المواقع من القائمة.');}};
-  $('sendAllBtn').onclick=()=>{const next=chronological().find(x=>!x.sent);if(!next||state.pendingSendId)return;state.pendingSendId=next.id;persist();waShare(formatted(next));notice(`تم تجهيز ${next.code}. بعد الرجوع من واتساب سيتم نقل الطابور تلقائيًا للموقع التالي.`);};
-  function finishPendingSend(){if(document.visibilityState!=='visible'||!state.pendingSendId)return;const item=state.items.find(x=>x.id===state.pendingSendId);if(item&&!item.sent){item.sent=true;notice(`تم تجاوز ${item.code} وتجهيز الموقع التالي في الطابور.`);}state.pendingSendId=null;persist();}
+  $('sendAllBtn').onclick=()=>{const next=ordered().find(x=>!x.sent);if(!next||state.pendingSendId)return;state.pendingSendId=next.id;persist();waShare(formatted(next));notice(`تم تجهيز ${next.code}. بعد الرجوع من واتساب سيتم نقل الطابور تلقائيًا للموقع التالي.`);};
+  let lastReturnHandled=0;
+  function finishPendingSend(){if(document.visibilityState!=='visible'||!state.pendingSendId)return;const now=Date.now();if(now-lastReturnHandled<900)return;lastReturnHandled=now;const pending=state.pendingSendId;const item=state.items.find(x=>x.id===pending);if(item&&!item.sent){item.sent=true;notice(`تم تجاوز ${item.code} وتجهيز الموقع التالي في الطابور.`);}state.pendingSendId=null;persist();}
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)finishPendingSend();});
   window.addEventListener('pageshow',()=>finishPendingSend());
   function handleShared(){

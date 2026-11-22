@@ -48,3 +48,10 @@ The share handler now searches the human-readable share title/text (before any U
 - Added FileReader fallback when File.text() is unavailable.
 - Detect JSON by filename extension or MIME type.
 - Cache version bumped to v9 so installed PWA can refresh assets.
+
+## V10 performance and sorting (Nov 22, 2026)
+- Sorts site codes grouped by their letter prefix, with numeric suffix descending inside each group (e.g. R300, R299, then next existing R code).
+- Send-all follows this same sorted order.
+- Renders the first 120 cards only and provides a show-more button to load additional cards in chunks, reducing initial rendering work for large lists.
+- Adds a short return-handler guard for WhatsApp app switching.
+- Cache bumped to v10.
