@@ -21,3 +21,16 @@ Share Target على Android/Chrome يعتمد على دعم النظام وال�
 - The send-all button label shows the next pending site code; after confirming a site sent, it points to the next pending site.
 - Clear button is now “مسح الكل” and removes all saved sites, pending and sent, after confirmation.
 - This version was checked for archive/file integrity; WhatsApp and Android share-target behavior still needs a real-device test.
+
+
+## V5: pin-code extraction from Google Maps shares
+
+The share handler now searches the human-readable share title/text (before any URL) for a code such as A111 or M68. If it finds one, it saves the shared Maps link under that exact code and blocks duplicate codes. If the share payload contains only a URL, the app leaves the link ready and asks the user to enter the pin code manually instead of inventing a sequential code. The share payload format varies by source app/Android; this extraction must be tested on the user device to confirm Google Maps includes the pin label.
+
+
+## V6: Import whole Google My Maps export
+- Added KML import, reading placemark names and coordinates.
+- Creates Google Maps coordinate links and uses pin labels as codes.
+- Skips duplicate codes/links and prompts before importing.
+- KMZ support included for common stored/deflate ZIP entries, subject to browser DecompressionStream support.
+- This import requires the user to export their map from Google My Maps to KML/KMZ first; it does not fetch private map contents directly from Google Maps.

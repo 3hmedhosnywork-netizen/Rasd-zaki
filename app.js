@@ -19,11 +19,27 @@
     return matches[0]?.replace(/[),،؛.!؟]+$/,'')||'';
   }
   function makeCode(){ if(!state.prefix.trim()||state.next===null||!Number.isFinite(state.next)){return '';} return state.prefix.trim()+state.next; }
-  function addLink(raw){
+  function addLink(raw, explicitCode=''){
     const url=extractUrl(raw); if(!url){notice('لم أتعرف على رابط خرائط. الصق الرابط وحاول مرة أخرى.');return false;}
-    if(!makeCode()){ $('urlInput').value=url; notice('الرابط وصل. حدد بادئة الكود والرقم التالي ثم أضف الموقع.'); return false; }
-    if(state.items.some(x=>x.url===url)){ $('urlInput').value=''; notice('الرابط ده موجود بالفعل في القائمة.'); return false; }
-    state.items.push({id:String(Date.now()+Math.random()),code:makeCode(),url,sent:false,created:Date.now()}); state.next+=1; $('urlInput').value='';notice('تم إضافة الموقع وترقيمه تلقائيًا.');persist();return true;
+    const typedCode=String(explicitCode||$('codeInput').value||'').trim();
+    const code=typedCode||makeCode();
+    if(!code){ $('urlInput').value=url; notice('الرابط وصل. أدخل اسم الدبوس مثل A111 أو حدد الترقيم ثم أضف الموقع.'); return false; }
+    if(state.items.some(x=>x.url===url)){ $('urlInput').value=''; $('codeInput').value=''; notice('الرابط ده موجود بالفعل في القائمة.'); return false; }
+    if(state.items.some(x=>x.code.toLowerCase()===code.toLowerCase())){ $('urlInput').value=url; $('codeInput').value=code; notice(`الكود ${code} موجود بالفعل. لم يتم تسجيل الموقع لتجنب التكرار.`); return false; }
+    state.items.push({id:String(Date.now()+Math.random()),code,url,sent:false,created:Date.now()});
+    if(!typedCode && state.next!==null && Number.isFinite(state.next)) state.next+=1;
+    $('urlInput').value=''; $('codeInput').value='';notice(`تم إضافة الموقع باسم ${code}.`);persist();return true;
+  }
+  function extractPinCode(sharedText, title=''){
+    // Inspect only the human-readable title/text before a URL; never derive a code from the URL slug.
+    const sources=[String(title||''),String(sharedText||'')];
+    const codePattern=/\b([A-Za-z]{1,4}[-_ ]?\d{1,5})\b/g;
+    for(const source of sources){
+      const beforeUrl=source.split(/https?:\/\//i)[0];
+      const matches=[...beforeUrl.matchAll(codePattern)].map(m=>m[1].replace(/[-_ ]/g,''));
+      if(matches.length){ return matches[matches.length-1].toUpperCase(); }
+    }
+    return '';
   }
   function notice(text){ $('shareNotice').textContent=text; $('shareNotice').classList.remove('hidden'); }
   // A blank line is intentionally kept between the URL and code to match the user's WhatsApp layout.
@@ -50,7 +66,7 @@
   }
   $('prefix').onchange=()=>{state.prefix=$('prefix').value.trim();persist();};
   $('nextNumber').onchange=()=>{const v=$('nextNumber').value.trim();state.next=v===''?null:Math.max(0,parseInt(v,10)||0);persist();};
-  $('addBtn').onclick=()=>addLink($('urlInput').value);
+  $('addBtn').onclick=()=>addLink($('urlInput').value,$('codeInput').value);
   $('pasteBtn').onclick=async()=>{try{$('urlInput').value=await navigator.clipboard.readText();}catch{notice('الصق الرابط يدويًا داخل المربع.');}};
   $('clearDone').textContent='مسح الكل';
   $('clearDone').onclick=()=>{const count=state.items.length;if(!count){notice('القائمة فارغة بالفعل.');return;}if(confirm(`تأكيد مسح الكل؟ سيتم حذف جميع المواقع (${count}) بما فيها المرسلة وغير المرسلة. لا يمكن التراجع.`)){state.items=[];state.pendingSendId=null;persist();notice('تم مسح كل المواقع من القائمة.');}};
@@ -58,9 +74,79 @@
   function finishPendingSend(){if(document.visibilityState!=='visible'||!state.pendingSendId)return;const item=state.items.find(x=>x.id===state.pendingSendId);if(item&&!item.sent){item.sent=true;notice(`تم تجاوز ${item.code} وتجهيز الموقع التالي في الطابور.`);}state.pendingSendId=null;persist();}
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)finishPendingSend();});
   window.addEventListener('pageshow',()=>finishPendingSend());
-  function handleShared(){const p=new URLSearchParams(location.search);const received=[p.get('url'),p.get('text'),p.get('title')].filter(Boolean).join('\n');const url=extractUrl(received);if(url){if(makeCode())addLink(url);else{$('urlInput').value=url;notice('وصل رابط الموقع. حدّد بداية الترقيم ثم اضغط «إضافة الموقع».');}}else if(received){$('urlInput').value=received;notice('تم استلام المشاركة. راجع الرابط داخل المربع ثم أضف الموقع.');}if(received)history.replaceState({},'',location.pathname);}
+  function handleShared(){
+    const p=new URLSearchParams(location.search);
+    const title=p.get('title')||''; const text=p.get('text')||''; const urlParam=p.get('url')||'';
+    const received=[urlParam,text,title].filter(Boolean).join('\n'); const url=extractUrl(received);
+    const code=extractPinCode(text,title);
+    if(url){
+      if(code){ $('urlInput').value=url; $('codeInput').value=code; addLink(url,code); }
+      else { $('urlInput').value=url; $('codeInput').value=''; notice('استلمت الرابط لكن اسم الدبوس لم يظهر في بيانات المشاركة. اكتب الاسم مثل A111 ثم اضغط إضافة الموقع؛ لن أرقّمه تلقائيًا.'); }
+    }else if(received){ $('urlInput').value=received; $('codeInput').value=code; notice(code?`تم استخراج اسم الدبوس ${code}، لكن لم أجد رابط خرائط صالحًا.`:'تم استلام المشاركة، لكن لم أتمكن من استخراج اسم الدبوس والرابط.'); }
+    if(received)history.replaceState({},'',location.pathname);
+  }
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('installBtn').classList.remove('hidden');});
   $('installBtn').onclick=async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$('installBtn').classList.add('hidden');};
   if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+
+  // V6: Import named placemarks from KML/KMZ exports.
+  const mapFile=$('mapFile'), importBtn=$('importMapBtn'), importNotice=$('importNotice');
+  function importMsg(s){importNotice.textContent=s;importNotice.classList.remove('hidden');}
+  function parseKmlText(xmlText){
+    const doc=new DOMParser().parseFromString(xmlText,'application/xml');
+    if(doc.querySelector('parsererror')) throw new Error('ملف KML غير صالح.');
+    const placemarks=[...doc.getElementsByTagNameNS('*','Placemark')];
+    const found=[];
+    for(const pm of placemarks){
+      const name=(pm.getElementsByTagNameNS('*','name')[0]?.textContent||'').trim();
+      const coordNode=pm.getElementsByTagNameNS('*','coordinates')[0];
+      if(!coordNode) continue;
+      const raw=coordNode.textContent.trim().split(/[\s]+/)[0];
+      const parts=raw.split(','); if(parts.length<2) continue;
+      const lon=Number(parts[0]), lat=Number(parts[1]); if(!Number.isFinite(lon)||!Number.isFinite(lat)) continue;
+      const codeMatch=name.match(/\b([A-Za-z]{1,5}[-_ ]?\d{1,6})\b/);
+      const code=codeMatch?codeMatch[1].replace(/[-_ ]/g,'').toUpperCase():name;
+      if(!code) continue;
+      const url=`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+      found.push({code,url,name,lat,lon});
+    }
+    return found;
+  }
+  async function extractKmlFromKmz(buf){
+    // Read ZIP local file headers and support common stored/deflate KML entries.
+    const view=new DataView(buf); let pos=0;
+    while(pos+30<=view.byteLength){
+      if(view.getUint32(pos,true)!==0x04034b50){pos++;continue;}
+      const method=view.getUint16(pos+8,true), compSize=view.getUint32(pos+18,true), nameLen=view.getUint16(pos+26,true), extraLen=view.getUint16(pos+28,true);
+      const nameBytes=new Uint8Array(buf,pos+30,nameLen); const filename=new TextDecoder().decode(nameBytes);
+      const dataStart=pos+30+nameLen+extraLen;
+      if(filename.toLowerCase().endsWith('.kml')){
+        const compressed=new Uint8Array(buf,dataStart,compSize); let data;
+        if(method===0)data=compressed;
+        else if(method===8){
+          if(typeof DecompressionStream==='undefined') throw new Error('متصفحك لا يدعم فك KMZ. جرّب تصدير KML.');
+          const ds=new DecompressionStream('deflate-raw'); data=new Uint8Array(await new Response(new Blob([compressed]).stream().pipeThrough(ds)).arrayBuffer());
+        } else throw new Error('ضغط KMZ غير مدعوم. جرّب ملف KML.');
+        return new TextDecoder().decode(data);
+      }
+      pos=dataStart+compSize;
+    }
+    throw new Error('لم أجد ملف KML داخل KMZ.');
+  }
+  importBtn.onclick=async()=>{
+    const file=mapFile.files?.[0]; if(!file){importMsg('اختار ملف KML أو KMZ الأول.');return;}
+    try{
+      let text;
+      if(file.name.toLowerCase().endsWith('.kmz')) text=await extractKmlFromKmz(await file.arrayBuffer()); else text=await file.text();
+      const pins=parseKmlText(text); if(!pins.length){importMsg('لم أجد دبابيس بها أسماء وإحداثيات في الملف.');return;}
+      const unique=[]; const seenCodes=new Set(),seenUrls=new Set();
+      for(const p of pins){const ck=p.code.toLowerCase(); if(seenCodes.has(ck)||state.items.some(x=>x.code.toLowerCase()===ck)||seenUrls.has(p.url)||state.items.some(x=>x.url===p.url))continue;seenCodes.add(ck);seenUrls.add(p.url);unique.push(p);}
+      if(!unique.length){importMsg(`قرأت ${pins.length} دبوس، لكن كلها موجودة بالفعل أو مكررة؛ لم أضف شيئًا.`);return;}
+      if(!confirm(`قرأت ${pins.length} دبوس من الخريطة. سيتم إضافة ${unique.length} دبوس جديد. هل تريد المتابعة؟`))return;
+      unique.forEach(p=>state.items.push({id:String(Date.now()+Math.random()),code:p.code,url:p.url,sent:false,created:Date.now(),sourceName:p.name,lat:p.lat,lon:p.lon}));
+      persist(); importMsg(`تم استيراد ${unique.length} دبوس. تم تجاهل ${pins.length-unique.length} تكرار/موجود مسبقًا.`);
+    }catch(e){importMsg(e?.message||'حدث خطأ أثناء قراءة الملف.');}
+  };
+
   render();handleShared();
 })();
