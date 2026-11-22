@@ -168,12 +168,13 @@
         if(lowerName.endsWith('.kmz')) text=await extractKmlFromKmz(await file.arrayBuffer()); else text=await readSelectedFile(file);
         pins=parseKmlText(text);
       } if(!pins.length){importMsg('لم أجد دبابيس بها أسماء وإحداثيات في الملف.');return;}
-      const unique=[]; const seenCodes=new Set(),seenUrls=new Set();
-      for(const p of pins){const ck=p.code.toLowerCase(); if(seenCodes.has(ck)||state.items.some(x=>x.code.toLowerCase()===ck)||seenUrls.has(p.url)||state.items.some(x=>x.url===p.url))continue;seenCodes.add(ck);seenUrls.add(p.url);unique.push(p);}
-      if(!unique.length){importMsg(`قرأت ${pins.length} دبوس، لكن كلها موجودة بالفعل أو مكررة؛ لم أضف شيئًا.`);return;}
-      if(!confirm(`قرأت ${pins.length} دبوس من الخريطة. سيتم إضافة ${unique.length} دبوس جديد. هل تريد المتابعة؟`))return;
+      // Import deduplication is by code only. Different site codes may legitimately share a map URL/location.
+      const unique=[]; const seenCodes=new Set();
+      for(const p of pins){const ck=p.code.trim().toLowerCase(); if(seenCodes.has(ck)||state.items.some(x=>String(x.code||'').trim().toLowerCase()===ck))continue;seenCodes.add(ck);unique.push(p);}
+      if(!unique.length){importMsg(`قرأت ${pins.length} دبوس، لكن جميع الأكواد موجودة بالفعل أو مكررة؛ لم أضف شيئًا.`);return;}
+      if(!confirm(`قرأت ${pins.length} دبوس من الخريطة. سيتم إضافة ${unique.length} كود جديد. هل تريد المتابعة؟`))return;
       unique.forEach(p=>state.items.push({id:String(Date.now()+Math.random()),code:p.code,url:p.url,sent:false,created:Date.now(),sourceName:p.name,lat:p.lat,lon:p.lon}));
-      persist(); importMsg(`تم استيراد ${unique.length} دبوس. تم تجاهل ${pins.length-unique.length} تكرار/موجود مسبقًا.`);
+      persist(); importMsg(`تم استيراد ${unique.length} كود. تم تجاهل ${pins.length-unique.length} كود مكرر/موجود مسبقًا. (لم يعد يتم تجاهل المواقع بسبب تشابه الرابط فقط)`);
     }catch(e){importMsg(e?.message||'حدث خطأ أثناء قراءة الملف.');}
   };
 

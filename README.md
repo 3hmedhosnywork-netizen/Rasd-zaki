@@ -57,7 +57,7 @@ The share handler now searches the human-readable share title/text (before any U
 - Cache bumped to v10.
 
 
-## V11 letter-group deletion (Nov 22, 2026)
+## V12 letter-group deletion (Nov 22, 2026)
 - Adds an expandable “مسح حرف كامل” panel in the saved-sites section.
 - Enter a single letter to preview how many matching letter+number codes will be deleted.
 - Final confirmation is required; deletes all matching sites, both sent and unsent, and leaves other letter groups untouched.
