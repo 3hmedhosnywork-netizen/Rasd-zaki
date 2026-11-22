@@ -40,3 +40,11 @@ The share handler now searches the human-readable share title/text (before any U
 - Adds JSON import support for Android-friendly site data files.
 - Retains existing KML and KMZ import and all V6 app features.
 - V7 adds a JSON import path for Android-friendly file picking while preserving V6 KML/KMZ import.
+
+
+## V9 Android file picker fix (Nov 22, 2026)
+- Broadened file picker MIME/extension acceptance for Android document providers.
+- Added immediate visible confirmation after file selection.
+- Added FileReader fallback when File.text() is unavailable.
+- Detect JSON by filename extension or MIME type.
+- Cache version bumped to v9 so installed PWA can refresh assets.

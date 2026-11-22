@@ -92,6 +92,20 @@
   // V7: Keep KML/KMZ import and add lightweight JSON import for Android file pickers.
   const mapFile=$('mapFile'), importBtn=$('importMapBtn'), importNotice=$('importNotice');
   function importMsg(s){importNotice.textContent=s;importNotice.classList.remove('hidden');}
+  // Android picker compatibility: confirm file selection immediately and accept generic MIME types.
+  mapFile.addEventListener('change',()=>{
+    const file=mapFile.files?.[0];
+    if(!file){importMsg('لم يتم اختيار ملف. حاول اختيار الملف مرة أخرى.');return;}
+    importMsg(`تم اختيار الملف: ${file.name} (${(file.size/1024/1024).toFixed(2)} MB). اضغط «استيراد المواقع» للقراءة.`);
+  });
+  async function readSelectedFile(file){
+    if(typeof file.text==='function') return await file.text();
+    return await new Promise((resolve,reject)=>{
+      const reader=new FileReader(); reader.onload=()=>resolve(String(reader.result||''));
+      reader.onerror=()=>reject(new Error('تعذر قراءة الملف من الهاتف.'));
+      reader.readAsText(file,'UTF-8');
+    });
+  }
   function parseKmlText(xmlText){
     const doc=new DOMParser().parseFromString(xmlText,'application/xml');
     if(doc.querySelector('parsererror')) throw new Error('ملف KML غير صالح.');
@@ -137,14 +151,15 @@
     const file=mapFile.files?.[0]; if(!file){importMsg('اختار ملف JSON أو KML أو KMZ الأول.');return;}
     try{
       let pins;
-      const lowerName=file.name.toLowerCase();
-      if(lowerName.endsWith('.json')){
-        const parsed=JSON.parse(await file.text());
+      const lowerName=String(file.name||'').toLowerCase();
+      const looksJson=lowerName.endsWith('.json')||/json/i.test(file.type||'');
+      if(looksJson){
+        const parsed=JSON.parse(await readSelectedFile(file));
         const rawPins=Array.isArray(parsed)?parsed:(Array.isArray(parsed?.pins)?parsed.pins:[]);
         pins=rawPins.map(p=>{const lat=Number(p.lat),lon=Number(p.lon);const name=String(p.name??p.code??'').trim();const code=String(p.code??name).trim();const url=String(p.url||((Number.isFinite(lat)&&Number.isFinite(lon))?`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`:''));return {code,name,lat,lon,url};}).filter(p=>p.code&&p.url);
       }else{
         let text;
-        if(lowerName.endsWith('.kmz')) text=await extractKmlFromKmz(await file.arrayBuffer()); else text=await file.text();
+        if(lowerName.endsWith('.kmz')) text=await extractKmlFromKmz(await file.arrayBuffer()); else text=await readSelectedFile(file);
         pins=parseKmlText(text);
       } if(!pins.length){importMsg('لم أجد دبابيس بها أسماء وإحداثيات في الملف.');return;}
       const unique=[]; const seenCodes=new Set(),seenUrls=new Set();
