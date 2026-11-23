@@ -104,14 +104,12 @@
       if(state.pendingReturnHandled===pending)return;
       const item=state.items.find(x=>x.id===pending);
       if(!item){state.pendingSendId=null;state.pendingSendAt=0;state.pendingWentAwayAt=0;state.pendingReturnHandled=null;persist();return;}
-      // WhatsApp doesn't expose a reliable sent receipt to a PWA. Ask the user instead
-      // of incorrectly marking a message as sent merely because WhatsApp was opened.
-      state.pendingReturnHandled=pending;
-      const didSend=confirm(`هل أرسلت رسالة ${item.code} فعلًا في واتساب؟\n\nنعم: تسجيلها كمرسلة.\nلا: إبقاؤها في قائمة الانتظار.`);
-      if(didSend)item.sent=true;
+      // On return from WhatsApp, automatically mark this item as sent and advance.
+      // If it was not actually sent, the item's resend action remains available.
+      item.sent=true;
       state.pendingSendId=null;state.pendingSendAt=0;state.pendingWentAwayAt=0;state.pendingReturnHandled=null;
       persist();
-      notice(didSend?`تم تأكيد إرسال ${item.code}. الموقع التالي جاهز.`:`لم يتم تأكيد إرسال ${item.code}. ما زال في قائمة الانتظار.`);
+      notice(`تم تسجيل ${item.code} كمرسل بعد الرجوع من واتساب. الموقع التالي جاهز.`);
     },450);
   }
   document.addEventListener('visibilitychange',()=>{
