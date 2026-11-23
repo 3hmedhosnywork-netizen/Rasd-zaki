@@ -5,11 +5,12 @@
     prefix: typeof raw?.prefix === 'string' ? raw.prefix : '',
     next: raw?.next === null || raw?.next === '' || raw?.next === undefined ? null : Number(raw.next),
     pendingSendId: typeof raw?.pendingSendId === 'string' ? raw.pendingSendId : null,
+    pendingSendAt: Number(raw?.pendingSendAt)||0,
     items: Array.isArray(raw?.items) ? raw.items.filter(x => x && typeof x.url === 'string').map(x => ({
       id: String(x.id || (Date.now()+Math.random())), code: String(x.code || ''), url: String(x.url), sent: !!x.sent, created: Number(x.created)||Date.now()
     })) : []
   });
-  let state = {prefix:'',next:null,pendingSendId:null,items:[]};
+  let state = {prefix:'',next:null,pendingSendId:null,pendingSendAt:0,items:[]};
   try { state = normalize(JSON.parse(localStorage.getItem(KEY)||'{}')); } catch {}
   let installPrompt = null;
   let visibleCount = 120;
@@ -65,7 +66,7 @@
       const link=document.createElement('div'); link.className='link'; link.textContent=item.url;
       const actions=document.createElement('div'); actions.className='item-actions';
       const resend=document.createElement('button'); resend.className='resend'; resend.textContent='إعادة إرسال'; resend.onclick=()=>waShare(formatted(item));
-      const remove=document.createElement('button'); remove.className='delete-item'; remove.textContent='مسح الموقع'; remove.onclick=()=>{if(confirm(`حذف الموقع ${item.code} من القائمة؟`)){if(state.pendingSendId===item.id)state.pendingSendId=null;state.items=state.items.filter(x=>x.id!==item.id);persist();notice(`تم حذف الموقع ${item.code}.`);}};
+      const remove=document.createElement('button'); remove.className='delete-item'; remove.textContent='مسح الموقع'; remove.onclick=()=>{if(confirm(`حذف الموقع ${item.code} من القائمة؟`)){if(state.pendingSendId===item.id){state.pendingSendId=null;state.pendingSendAt=0;}state.items=state.items.filter(x=>x.id!==item.id);persist();notice(`تم حذف الموقع ${item.code}.`);}};
       actions.append(resend,remove); card.append(top,link,actions); $('queue').append(card);
     }
   }
@@ -74,12 +75,27 @@
   $('addBtn').onclick=()=>addLink($('urlInput').value,$('codeInput').value);
   $('pasteBtn').onclick=async()=>{try{$('urlInput').value=await navigator.clipboard.readText();}catch{notice('الصق الرابط يدويًا داخل المربع.');}};
   $('clearDone').textContent='مسح الكل';
-  $('clearDone').onclick=()=>{const count=state.items.length;if(!count){notice('القائمة فارغة بالفعل.');return;}if(confirm(`تأكيد مسح الكل؟ سيتم حذف جميع المواقع (${count}) بما فيها المرسلة وغير المرسلة. لا يمكن التراجع.`)){state.items=[];state.pendingSendId=null;persist();notice('تم مسح كل المواقع من القائمة.');}};
-  $('sendAllBtn').onclick=()=>{const next=ordered().find(x=>!x.sent);if(!next||state.pendingSendId)return;state.pendingSendId=next.id;persist();waShare(formatted(next));notice(`تم تجهيز ${next.code}. بعد الرجوع من واتساب سيتم نقل الطابور تلقائيًا للموقع التالي.`);};
+  $('clearDone').onclick=()=>{const count=state.items.length;if(!count){notice('القائمة فارغة بالفعل.');return;}if(confirm(`تأكيد مسح الكل؟ سيتم حذف جميع المواقع (${count}) بما فيها المرسلة وغير المرسلة. لا يمكن التراجع.`)){state.items=[];state.pendingSendId=null;state.pendingSendAt=0;persist();notice('تم مسح كل المواقع من القائمة.');}};
+  $('sendAllBtn').onclick=()=>{const next=ordered().find(x=>!x.sent);if(!next||state.pendingSendId)return;state.pendingSendId=next.id;state.pendingSendAt=Date.now();persist();waShare(formatted(next));notice(`تم تجهيز ${next.code}. بعد الرجوع من واتساب سيتم نقل الطابور تلقائيًا للموقع التالي.`);};
   let lastReturnHandled=0;
-  function finishPendingSend(){if(document.visibilityState!=='visible'||!state.pendingSendId)return;const now=Date.now();if(now-lastReturnHandled<900)return;lastReturnHandled=now;const pending=state.pendingSendId;const item=state.items.find(x=>x.id===pending);if(item&&!item.sent){item.sent=true;notice(`تم تجاوز ${item.code} وتجهيز الموقع التالي في الطابور.`);}state.pendingSendId=null;persist();}
+  function finishPendingSend(){
+    if(document.visibilityState!=='visible'||!state.pendingSendId)return;
+    const now=Date.now();
+    // Ignore rapid lifecycle events while the WhatsApp handoff is still starting.
+    const remaining=1200-(now-(state.pendingSendAt||now));
+    if(remaining>0){window.setTimeout(finishPendingSend,remaining+80);return;}
+    if(now-lastReturnHandled<500)return;
+    lastReturnHandled=now;
+    const pending=state.pendingSendId;
+    const item=state.items.find(x=>x.id===pending);
+    if(item&&!item.sent){item.sent=true;notice(`تم تسجيل ${item.code} وإعداد الموقع التالي تلقائيًا.`);}
+    state.pendingSendId=null;state.pendingSendAt=0;persist();
+  }
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)finishPendingSend();});
-  window.addEventListener('pageshow',()=>finishPendingSend());
+  window.addEventListener('pageshow',finishPendingSend);
+  window.addEventListener('focus',finishPendingSend);
+  // Recover the pending send when Android restores/reopens the PWA process.
+  window.setTimeout(finishPendingSend,1500);
   function handleShared(){
     const p=new URLSearchParams(location.search);
     const title=p.get('title')||''; const text=p.get('text')||''; const urlParam=p.get('url')||'';

@@ -62,3 +62,10 @@ The share handler now searches the human-readable share title/text (before any U
 - Enter a single letter to preview how many matching letter+number codes will be deleted.
 - Final confirmation is required; deletes all matching sites, both sent and unsent, and leaves other letter groups untouched.
 - Cache bumped to v11.
+
+## V13: WhatsApp return-state recovery
+- Improved the pending WhatsApp handoff recovery using visibilitychange, pageshow, focus, and a startup recovery check.
+- Persisted the handoff timestamp to safely handle Android PWA process restoration and prevent rapid lifecycle events from clearing the pending state too early.
+- When the app resumes after the handoff, it advances from the pending site and updates the next-site button.
+- Cache version bumped to V13.
+- Requires real-device test to confirm Android/WhatsApp lifecycle behavior.
