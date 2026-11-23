@@ -83,7 +83,10 @@
   function finalizeAfterReturn(){
     if(finalizeTimer)clearTimeout(finalizeTimer);
     finalizeTimer=setTimeout(()=>{
-      if(document.visibilityState!=='visible'||!state.pendingSendId||!state.pendingWentAwayAt)return;
+      if(document.visibilityState!=='visible'||!state.pendingSendId||!state.pendingSendAt)return;
+      // Android/PWA may return from WhatsApp without firing visibilitychange(hidden).
+      // Treat a stable visible return after a short handoff window as completion, even if hidden was missed.
+      if(Date.now()-state.pendingSendAt<1800)return;
       const pending=state.pendingSendId;
       if(state.pendingReturnHandled===pending)return;
       const item=state.items.find(x=>x.id===pending);
@@ -98,9 +101,9 @@
       if(state.pendingSendId&&!state.pendingWentAwayAt){state.pendingWentAwayAt=Date.now();persist();}
     }else finalizeAfterReturn();
   });
-  window.addEventListener('pageshow',()=>{if(state.pendingWentAwayAt)finalizeAfterReturn();});
-  window.addEventListener('focus',()=>{if(state.pendingWentAwayAt)finalizeAfterReturn();});
-  // Recover only a confirmed app-background handoff; do not auto-advance on startup alone.
+  window.addEventListener('pageshow',()=>{if(state.pendingSendId)finalizeAfterReturn();});
+  window.addEventListener('focus',()=>{if(state.pendingSendId)finalizeAfterReturn();});
+  // Recover a pending share on app return/start; visibility hidden is not reliable on Android PWAs.
   function handleShared(){
     const p=new URLSearchParams(location.search);
     const title=p.get('title')||''; const text=p.get('text')||''; const urlParam=p.get('url')||'';
