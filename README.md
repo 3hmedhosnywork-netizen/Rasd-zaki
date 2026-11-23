@@ -69,3 +69,10 @@ The share handler now searches the human-readable share title/text (before any U
 - When the app resumes after the handoff, it advances from the pending site and updates the next-site button.
 - Cache version bumped to V13.
 - Requires real-device test to confirm Android/WhatsApp lifecycle behavior.
+
+## V16: Return recovery and Google Maps share intake
+
+- Fixed the pending-send return logic so the short handoff window retries instead of abandoning the send state; background/visible transitions are handled with a short settle delay.
+- Broadened share-target field parsing (`title`, `text`, `url` plus common alternate keys) and URL decoding before extracting Google Maps links.
+- Updated the service-worker cache key to `marsal-sites-v16` to force installed clients to fetch the new app files.
+- Still requires testing on the user's Android device: WhatsApp does not provide a reliable send-confirmation signal to the PWA, so return-to-app is used as the completion heuristic.

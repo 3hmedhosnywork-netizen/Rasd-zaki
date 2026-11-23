@@ -19,9 +19,17 @@
   const PAGE_SIZE = 120;
   function persist(){ localStorage.setItem(KEY,JSON.stringify(state)); render(); }
   function extractUrl(value){
-    const matches=String(value||'').match(/https?:\/\/[^\s<>"']+/ig)||[];
-    for(const raw of matches){ const url=raw.replace(/[),،؛.!؟]+$/,''); if(/maps\.|google\.[^/]+\/maps|goo\.gl\/maps|maps\.app\.goo\.gl/i.test(url)) return url; }
-    return matches[0]?.replace(/[),،؛.!؟]+$/,'')||'';
+    // Share intents can arrive encoded, escaped, or with the Maps link in a different field.
+    const candidates=[String(value||'')];
+    try{candidates.push(decodeURIComponent(candidates[0].replace(/\+/g,'%20')));}catch{}
+    for(const source of candidates){
+      const matches=source.match(/https?:\/\/[^\s<>"']+/ig)||[];
+      for(const raw of matches){
+        const url=raw.replace(/[),،؛.!؟]+$/,'').replace(/[\]}]+$/,'');
+        if(/maps\.|google\.[^/]+\/maps|goo\.gl\/maps|maps\.app\.goo\.gl/i.test(url)) return url;
+      }
+    }
+    return '';
   }
   function makeCode(){ if(!state.prefix.trim()||state.next===null||!Number.isFinite(state.next)){return '';} return state.prefix.trim()+state.next; }
   function addLink(raw, explicitCode=''){
@@ -82,19 +90,23 @@
   let finalizeTimer=null;
   function finalizeAfterReturn(){
     if(finalizeTimer)clearTimeout(finalizeTimer);
+    const pendingAtCall=state.pendingSendId;
     finalizeTimer=setTimeout(()=>{
       if(document.visibilityState!=='visible'||!state.pendingSendId||!state.pendingSendAt)return;
-      // Android/PWA may return from WhatsApp without firing visibilitychange(hidden).
-      // Treat a stable visible return after a short handoff window as completion, even if hidden was missed.
-      if(Date.now()-state.pendingSendAt<1800)return;
+      if(state.pendingSendId!==pendingAtCall)return;
+      // If Android reported that the app went backgrounded, a visible return is
+      // enough. Otherwise retry until a short handoff window has passed (never dead-end).
+      const elapsed=Date.now()-state.pendingSendAt;
+      const hadBackgrounded=!!state.pendingWentAwayAt;
+      if(!hadBackgrounded&&elapsed<2200){finalizeAfterReturn();return;}
       const pending=state.pendingSendId;
       if(state.pendingReturnHandled===pending)return;
       const item=state.items.find(x=>x.id===pending);
-      if(item&&!item.sent){item.sent=true;notice(`تم تسجيل ${item.code} وإعداد الموقع التالي تلقائيًا.`);}
+      if(item&&!item.sent){item.sent=true;notice(`تم تحديث حالة ${item.code} وتجهيز الموقع التالي تلقائيًا.`);}
       state.pendingReturnHandled=pending;
       state.pendingSendId=null;state.pendingSendAt=0;state.pendingWentAwayAt=0;
       persist();
-    },700);
+    },350);
   }
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden){
@@ -106,13 +118,17 @@
   // Recover a pending share on app return/start; visibility hidden is not reliable on Android PWAs.
   function handleShared(){
     const p=new URLSearchParams(location.search);
-    const title=p.get('title')||''; const text=p.get('text')||''; const urlParam=p.get('url')||'';
-    const received=[urlParam,text,title].filter(Boolean).join('\n'); const url=extractUrl(received);
+    // Support standard Web Share Target names plus common Android/text-share variants.
+    const title=p.get('title')||p.get('name')||'';
+    const text=p.get('text')||p.get('shared_text')||p.get('content')||'';
+    const urlParam=p.get('url')||p.get('link')||p.get('shared_url')||'';
+    const received=[title,text,urlParam].filter(Boolean).join('\n');
+    const url=extractUrl([urlParam,text,title].filter(Boolean).join('\n'));
     const code=extractPinCode(text,title);
     if(url){
       if(code){ $('urlInput').value=url; $('codeInput').value=code; addLink(url,code); }
-      else { $('urlInput').value=url; $('codeInput').value=''; notice('استلمت الرابط لكن اسم الدبوس لم يظهر في بيانات المشاركة. اكتب الاسم مثل A111 ثم اضغط إضافة الموقع؛ لن أرقّمه تلقائيًا.'); }
-    }else if(received){ $('urlInput').value=received; $('codeInput').value=code; notice(code?`تم استخراج اسم الدبوس ${code}، لكن لم أجد رابط خرائط صالحًا.`:'تم استلام المشاركة، لكن لم أتمكن من استخراج اسم الدبوس والرابط.'); }
+      else { $('urlInput').value=url; $('codeInput').value=''; notice('وصل رابط خرائط جوجل. اسم الموقع لم يظهر في المشاركة؛ اكتب الكود مثل A111 ثم اضغط إضافة الموقع.'); }
+    }else if(received){ $('urlInput').value=received; $('codeInput').value=code; notice(code?`تم استخراج اسم الموقع ${code} لكن رابط خرائط جوجل غير واضح.`:'وصلت بيانات المشاركة، لكن الرابط غير موجود أو لم يتم التعرف عليه. جرّب نسخ رابط الموقع من خرائط جوجل ثم مشاركته مرة أخرى.'); }
     if(received)history.replaceState({},'',location.pathname);
   }
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('installBtn').classList.remove('hidden');});
