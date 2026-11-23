@@ -94,19 +94,23 @@
     finalizeTimer=setTimeout(()=>{
       if(document.visibilityState!=='visible'||!state.pendingSendId||!state.pendingSendAt)return;
       if(state.pendingSendId!==pendingAtCall)return;
-      // If Android reported that the app went backgrounded, a visible return is
-      // enough. Otherwise retry until a short handoff window has passed (never dead-end).
       const elapsed=Date.now()-state.pendingSendAt;
       const hadBackgrounded=!!state.pendingWentAwayAt;
-      if(!hadBackgrounded&&elapsed<2200){finalizeAfterReturn();return;}
+      // Wait for Android's app-switch lifecycle to settle, but don't loop forever.
+      if(!hadBackgrounded&&elapsed<3000){finalizeAfterReturn();return;}
       const pending=state.pendingSendId;
       if(state.pendingReturnHandled===pending)return;
       const item=state.items.find(x=>x.id===pending);
-      if(item&&!item.sent){item.sent=true;notice(`تم تحديث حالة ${item.code} وتجهيز الموقع التالي تلقائيًا.`);}
+      if(!item){state.pendingSendId=null;state.pendingSendAt=0;state.pendingWentAwayAt=0;state.pendingReturnHandled=null;persist();return;}
+      // WhatsApp doesn't expose a reliable sent receipt to a PWA. Ask the user instead
+      // of incorrectly marking a message as sent merely because WhatsApp was opened.
       state.pendingReturnHandled=pending;
-      state.pendingSendId=null;state.pendingSendAt=0;state.pendingWentAwayAt=0;
+      const didSend=confirm(`هل أرسلت رسالة ${item.code} فعلًا في واتساب؟\n\nنعم: تسجيلها كمرسلة.\nلا: إبقاؤها في قائمة الانتظار.`);
+      if(didSend)item.sent=true;
+      state.pendingSendId=null;state.pendingSendAt=0;state.pendingWentAwayAt=0;state.pendingReturnHandled=null;
       persist();
-    },350);
+      notice(didSend?`تم تأكيد إرسال ${item.code}. الموقع التالي جاهز.`:`لم يتم تأكيد إرسال ${item.code}. ما زال في قائمة الانتظار.`);
+    },450);
   }
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden){
@@ -115,26 +119,22 @@
   });
   window.addEventListener('pageshow',()=>{if(state.pendingSendId)finalizeAfterReturn();});
   window.addEventListener('focus',()=>{if(state.pendingSendId)finalizeAfterReturn();});
-  // Recover a pending share on app return/start; visibility hidden is not reliable on Android PWAs.
+  // Handle Android share intents even when Maps sends only a URL and no pin title.
   function handleShared(){
     const p=new URLSearchParams(location.search);
-    // Support standard Web Share Target names plus common Android/text-share variants.
-    const title=p.get('title')||p.get('name')||'';
-    const text=p.get('text')||p.get('shared_text')||p.get('content')||'';
-    const urlParam=p.get('url')||p.get('link')||p.get('shared_url')||'';
+    const title=p.get('title')||p.get('name')||p.get('subject')||'';
+    const text=p.get('text')||p.get('shared_text')||p.get('content')||p.get('message')||'';
+    const urlParam=p.get('url')||p.get('link')||p.get('shared_url')||p.get('uri')||'';
     const received=[title,text,urlParam].filter(Boolean).join('\n');
     const url=extractUrl([urlParam,text,title].filter(Boolean).join('\n'));
     const code=extractPinCode(text,title);
     if(url){
-      if(code){ $('urlInput').value=url; $('codeInput').value=code; addLink(url,code); }
-      else { $('urlInput').value=url; $('codeInput').value=''; notice('وصل رابط خرائط جوجل. اسم الموقع لم يظهر في المشاركة؛ اكتب الكود مثل A111 ثم اضغط إضافة الموقع.'); }
-    }else if(received){ $('urlInput').value=received; $('codeInput').value=code; notice(code?`تم استخراج اسم الموقع ${code} لكن رابط خرائط جوجل غير واضح.`:'وصلت بيانات المشاركة، لكن الرابط غير موجود أو لم يتم التعرف عليه. جرّب نسخ رابط الموقع من خرائط جوجل ثم مشاركته مرة أخرى.'); }
+      const autoCode=code||makeCode();
+      if(autoCode){$('urlInput').value=url;$('codeInput').value=code||'';addLink(url,code||'');}
+      else {$('urlInput').value=url;$('codeInput').value='';notice('وصل رابط خرائط جوجل، لكن لا يوجد كود في المشاركة ولا ترقيم تلقائي. اكتب كود الموقع ثم اضغط إضافة الموقع.');}
+    }else if(received){$('urlInput').value=received;$('codeInput').value=code;notice(code?`تم استخراج اسم الموقع ${code} لكن رابط خرائط جوجل غير واضح.`:'وصلت بيانات المشاركة، لكن الرابط غير موجود أو لم يتم التعرف عليه.');}
     if(received)history.replaceState({},'',location.pathname);
   }
-  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('installBtn').classList.remove('hidden');});
-  $('installBtn').onclick=async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$('installBtn').classList.add('hidden');};
-  if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-
   // V7: Keep KML/KMZ import and add lightweight JSON import for Android file pickers.
   const mapFile=$('mapFile'), importBtn=$('importMapBtn'), importNotice=$('importNotice');
   function importMsg(s){importNotice.textContent=s;importNotice.classList.remove('hidden');}

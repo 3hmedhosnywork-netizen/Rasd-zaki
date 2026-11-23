@@ -76,3 +76,10 @@ The share handler now searches the human-readable share title/text (before any U
 - Broadened share-target field parsing (`title`, `text`, `url` plus common alternate keys) and URL decoding before extracting Google Maps links.
 - Updated the service-worker cache key to `marsal-sites-v16` to force installed clients to fetch the new app files.
 - Still requires testing on the user's Android device: WhatsApp does not provide a reliable send-confirmation signal to the PWA, so return-to-app is used as the completion heuristic.
+
+
+## V17 fixes (2026-11-23)
+- WhatsApp return flow asks for confirmation instead of assuming a message was sent. Cancel keeps the site queued.
+- Maps shares with a link but no pin-code label use configured automatic numbering, otherwise prompt for manual code.
+- Share receiver recognizes additional common payload field names.
+- Service-worker cache bumped to V17.
