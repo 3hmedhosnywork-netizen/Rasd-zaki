@@ -33,15 +33,19 @@
   }
   function makeCode(){ if(!state.prefix.trim()||state.next===null||!Number.isFinite(state.next)){return '';} return state.prefix.trim()+state.next; }
   function addLink(raw, explicitCode=''){
-    const url=extractUrl(raw); if(!url){notice('لم أتعرف على رابط خرائط. الصق الرابط وحاول مرة أخرى.');return false;}
-    const typedCode=String(explicitCode||$('codeInput').value||'').trim();
-    const code=typedCode||makeCode();
-    if(!code){ $('urlInput').value=url; notice('الرابط وصل. أدخل اسم الدبوس مثل A111 أو حدد الترقيم ثم أضف الموقع.'); return false; }
-    if(state.items.some(x=>x.url===url)){ $('urlInput').value=''; $('codeInput').value=''; notice('الرابط ده موجود بالفعل في القائمة.'); return false; }
-    if(state.items.some(x=>x.code.toLowerCase()===code.toLowerCase())){ $('urlInput').value=url; $('codeInput').value=code; notice(`الكود ${code} موجود بالفعل. لم يتم تسجيل الموقع لتجنب التكرار.`); return false; }
+    const url=extractUrl(raw); if(!url){notice('لم يتم التعرف على رابط خرائط من المشاركة. حاول مشاركة الموقع مباشرة من خرائط جوجل.');return false;}
+    const typedCode=String(explicitCode||'').trim();
+    if(state.items.some(x=>x.url===url)){notice('الموقع ده موجود بالفعل في القائمة، لم يتم تكراره.');return false;}
+    let code=typedCode||makeCode();
+    if(!code){notice('حدد بادئة الكود والرقم التالي من الإعدادات أولًا.');return false;}
+    if(!typedCode){
+      // Skip codes already in use so numbering never collides with existing items.
+      while(state.items.some(x=>x.code.toLowerCase()===code.toLowerCase()) && state.next!==null){state.next+=1;code=makeCode();}
+    }
+    if(state.items.some(x=>x.code.toLowerCase()===code.toLowerCase())){notice(`الكود ${code} موجود بالفعل؛ لم يتم حفظ الرابط.`);return false;}
     state.items.push({id:String(Date.now()+Math.random()),code,url,sent:false,created:Date.now()});
     if(!typedCode && state.next!==null && Number.isFinite(state.next)) state.next+=1;
-    $('urlInput').value=''; $('codeInput').value='';notice(`تم إضافة الموقع باسم ${code}.`);persist();return true;
+    notice(`تم حفظ الموقع تلقائيًا باسم ${code}.`);persist();return true;
   }
   function extractPinCode(sharedText, title=''){
     // Inspect only the human-readable title/text before a URL; never derive a code from the URL slug.
@@ -82,8 +86,6 @@
   }
   $('prefix').onchange=()=>{state.prefix=$('prefix').value.trim();persist();};
   $('nextNumber').onchange=()=>{const v=$('nextNumber').value.trim();state.next=v===''?null:Math.max(0,parseInt(v,10)||0);persist();};
-  $('addBtn').onclick=()=>addLink($('urlInput').value,$('codeInput').value);
-  $('pasteBtn').onclick=async()=>{try{$('urlInput').value=await navigator.clipboard.readText();}catch{notice('الصق الرابط يدويًا داخل المربع.');}};
   $('clearDone').textContent='مسح الكل';
   $('clearDone').onclick=()=>{const count=state.items.length;if(!count){notice('القائمة فارغة بالفعل.');return;}if(confirm(`تأكيد مسح الكل؟ سيتم حذف جميع المواقع (${count}) بما فيها المرسلة وغير المرسلة. لا يمكن التراجع.`)){state.items=[];state.pendingSendId=null;state.pendingSendAt=0;state.pendingWentAwayAt=0;state.pendingReturnHandled=null;persist();notice('تم مسح كل المواقع من القائمة.');}};
   $('sendAllBtn').onclick=()=>{const next=ordered().find(x=>!x.sent);if(!next||state.pendingSendId)return;state.pendingSendId=next.id;state.pendingSendAt=Date.now();state.pendingWentAwayAt=0;state.pendingReturnHandled=null;persist();waShare(formatted(next));notice(`تم تجهيز ${next.code}. بعد الرجوع من واتساب سيتم نقل الطابور تلقائيًا للموقع التالي.`);};
@@ -129,10 +131,9 @@
     const url=extractUrl([urlParam,text,title].filter(Boolean).join('\n'));
     const code=extractPinCode(text,title);
     if(url){
-      const autoCode=code||makeCode();
-      if(autoCode){$('urlInput').value=url;$('codeInput').value=code||'';addLink(url,code||'');}
-      else {$('urlInput').value=url;$('codeInput').value='';notice('وصل رابط خرائط جوجل، لكن لا يوجد كود في المشاركة ولا ترقيم تلقائي. اكتب كود الموقع ثم اضغط إضافة الموقع.');}
-    }else if(received){$('urlInput').value=received;$('codeInput').value=code;notice(code?`تم استخراج اسم الموقع ${code} لكن رابط خرائط جوجل غير واضح.`:'وصلت بيانات المشاركة، لكن الرابط غير موجود أو لم يتم التعرف عليه.');}
+      // Always use the user-configured prefix and next number, ignoring Maps pin labels.
+      addLink(url);
+    }else if(received){notice('وصلت المشاركة لكن لم أتعرف على رابط خرائط. جرّب مشاركة الموقع مباشرة من خرائط جوجل.');}
     if(received)history.replaceState({},'',location.pathname);
   }
   // V7: Keep KML/KMZ import and add lightweight JSON import for Android file pickers.
