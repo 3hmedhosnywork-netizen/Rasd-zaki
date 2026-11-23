@@ -14,6 +14,8 @@
   });
   let state = {prefix:'',next:null,pendingSendId:null,pendingSendAt:0,pendingWentAwayAt:0,pendingReturnHandled:null,items:[]};
   try { state = normalize(JSON.parse(localStorage.getItem(KEY)||'{}')); } catch {}
+  // Recovery: if an older build left a pending item, reopening this app means the user returned from WhatsApp.
+  if(state.pendingSendId){ const pendingItem=state.items.find(x=>x.id===state.pendingSendId); if(pendingItem) pendingItem.sent=true; state.pendingSendId=null; state.pendingSendAt=0; state.pendingWentAwayAt=0; state.pendingReturnHandled=null; }
   let installPrompt = null;
   let visibleCount = 120;
   const PAGE_SIZE = 120;
@@ -70,8 +72,8 @@
     $('queue').replaceChildren(); $('empty').classList.toggle('hidden',state.items.length>0); $('sendAllBtn').classList.toggle('hidden',state.items.length===0);
     let moreBtn=$('loadMoreBtn'); if(!moreBtn){moreBtn=document.createElement('button');moreBtn.id='loadMoreBtn';moreBtn.className='secondary';moreBtn.style.width='100%';moreBtn.style.margin='12px 0';moreBtn.textContent='عرض المزيد من المواقع';moreBtn.onclick=()=>{visibleCount+=PAGE_SIZE;render();};$('queue').after(moreBtn);} moreBtn.classList.toggle('hidden',state.items.length<=visibleCount); moreBtn.textContent=`عرض ${Math.max(0,Math.min(PAGE_SIZE,state.items.length-visibleCount))} موقع إضافي (${Math.min(visibleCount,state.items.length)} من ${state.items.length})`;
     const nextToSend=ordered().find(x=>!x.sent);
-    $('sendAllBtn').textContent=state.pendingSendId?`بانتظار الرجوع من واتساب (${chronological().find(x=>x.id===state.pendingSendId)?.code||''})`:(nextToSend?`إرسال الموقع التالي (${nextToSend.code}) إلى واتساب`:'تم إرسال جميع المواقع');
-    $('sendAllBtn').disabled=!nextToSend||!!state.pendingSendId;
+    $('sendAllBtn').textContent=nextToSend?`إرسال الموقع التالي (${nextToSend.code}) إلى واتساب`:'تم إرسال جميع المواقع';
+    $('sendAllBtn').disabled=!nextToSend;
     for(const item of ordered().slice(0,visibleCount)){
       const card=document.createElement('article'); card.className='item';
       const top=document.createElement('div'); top.className='item-top';
@@ -88,37 +90,14 @@
   $('nextNumber').onchange=()=>{const v=$('nextNumber').value.trim();state.next=v===''?null:Math.max(0,parseInt(v,10)||0);persist();};
   $('clearDone').textContent='مسح الكل';
   $('clearDone').onclick=()=>{const count=state.items.length;if(!count){notice('القائمة فارغة بالفعل.');return;}if(confirm(`تأكيد مسح الكل؟ سيتم حذف جميع المواقع (${count}) بما فيها المرسلة وغير المرسلة. لا يمكن التراجع.`)){state.items=[];state.pendingSendId=null;state.pendingSendAt=0;state.pendingWentAwayAt=0;state.pendingReturnHandled=null;persist();notice('تم مسح كل المواقع من القائمة.');}};
-  $('sendAllBtn').onclick=()=>{const next=ordered().find(x=>!x.sent);if(!next||state.pendingSendId)return;state.pendingSendId=next.id;state.pendingSendAt=Date.now();state.pendingWentAwayAt=0;state.pendingReturnHandled=null;persist();waShare(formatted(next));notice(`تم تجهيز ${next.code}. بعد الرجوع من واتساب سيتم نقل الطابور تلقائيًا للموقع التالي.`);};
-  let finalizeTimer=null;
-  function finalizeAfterReturn(){
-    if(finalizeTimer)clearTimeout(finalizeTimer);
-    const pendingAtCall=state.pendingSendId;
-    finalizeTimer=setTimeout(()=>{
-      if(document.visibilityState!=='visible'||!state.pendingSendId||!state.pendingSendAt)return;
-      if(state.pendingSendId!==pendingAtCall)return;
-      const elapsed=Date.now()-state.pendingSendAt;
-      const hadBackgrounded=!!state.pendingWentAwayAt;
-      // Wait for Android's app-switch lifecycle to settle, but don't loop forever.
-      if(!hadBackgrounded&&elapsed<3000){finalizeAfterReturn();return;}
-      const pending=state.pendingSendId;
-      if(state.pendingReturnHandled===pending)return;
-      const item=state.items.find(x=>x.id===pending);
-      if(!item){state.pendingSendId=null;state.pendingSendAt=0;state.pendingWentAwayAt=0;state.pendingReturnHandled=null;persist();return;}
-      // On return from WhatsApp, automatically mark this item as sent and advance.
-      // If it was not actually sent, the item's resend action remains available.
-      item.sent=true;
-      state.pendingSendId=null;state.pendingSendAt=0;state.pendingWentAwayAt=0;state.pendingReturnHandled=null;
-      persist();
-      notice(`تم تسجيل ${item.code} كمرسل بعد الرجوع من واتساب. الموقع التالي جاهز.`);
-    },450);
-  }
-  document.addEventListener('visibilitychange',()=>{
-    if(document.hidden){
-      if(state.pendingSendId&&!state.pendingWentAwayAt){state.pendingWentAwayAt=Date.now();persist();}
-    }else finalizeAfterReturn();
-  });
-  window.addEventListener('pageshow',()=>{if(state.pendingSendId)finalizeAfterReturn();});
-  window.addEventListener('focus',()=>{if(state.pendingSendId)finalizeAfterReturn();});
+  $('sendAllBtn').onclick=()=>{
+    const next=ordered().find(x=>!x.sent); if(!next)return;
+    // Advance the queue synchronously on the tap, before leaving the PWA.
+    // WhatsApp/Android lifecycle callbacks are unreliable and must not control queue progress.
+    next.sent=true; state.pendingSendId=null; state.pendingSendAt=0; state.pendingWentAwayAt=0; state.pendingReturnHandled=null;
+    persist(); waShare(formatted(next));
+    notice(`تم تجهيز ${next.code} لواتساب. الموقع التالي جاهز في القائمة؛ لو لم تُرسل الرسالة استخدم إعادة إرسال.`);
+  };
   // Handle Android share intents even when Maps sends only a URL and no pin title.
   function handleShared(){
     const p=new URLSearchParams(location.search);
