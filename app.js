@@ -92,11 +92,12 @@
   $('clearDone').onclick=()=>{const count=state.items.length;if(!count){notice('القائمة فارغة بالفعل.');return;}if(confirm(`تأكيد مسح الكل؟ سيتم حذف جميع المواقع (${count}) بما فيها المرسلة وغير المرسلة. لا يمكن التراجع.`)){state.items=[];state.pendingSendId=null;state.pendingSendAt=0;state.pendingWentAwayAt=0;state.pendingReturnHandled=null;persist();notice('تم مسح كل المواقع من القائمة.');}};
   $('sendAllBtn').onclick=()=>{
     const next=ordered().find(x=>!x.sent); if(!next)return;
-    // Advance the queue synchronously on the tap, before leaving the PWA.
-    // WhatsApp/Android lifecycle callbacks are unreliable and must not control queue progress.
+    // Open the WhatsApp share flow directly from the tap. Queue advancement is
+    // immediate and independent of WhatsApp returning or lifecycle events.
+    waShare(formatted(next));
     next.sent=true; state.pendingSendId=null; state.pendingSendAt=0; state.pendingWentAwayAt=0; state.pendingReturnHandled=null;
-    persist(); waShare(formatted(next));
-    notice(`تم تجهيز ${next.code} لواتساب. الموقع التالي جاهز في القائمة؛ لو لم تُرسل الرسالة استخدم إعادة إرسال.`);
+    persist();
+    notice(`تم فتح مشاركة ${next.code} على واتساب، والطابور انتقل فورًا للموقع التالي. لو لم تُرسل الرسالة استخدم إعادة إرسال.`);
   };
   // Handle Android share intents even when Maps sends only a URL and no pin title.
   function handleShared(){
